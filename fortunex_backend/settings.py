@@ -65,23 +65,39 @@ WSGI_APPLICATION = "fortunex_backend.wsgi.application"
 ASGI_APPLICATION = "fortunex_backend.asgi.application"
 
 # ─── Channels (WebSocket support for live ticks + position updates) ─────────
+REDIS_URL = config("REDIS_URL", default="redis://127.0.0.1:6379/0")
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [config("REDIS_URL", default="redis://127.0.0.1:6379/0")],
+            "hosts": [REDIS_URL],
         },
     },
 }
 
-# ─── Database (SQLite for dev; swap to PostgreSQL for production) ───────────
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
-}
+import dj_database_url
+from decouple import config
 
+DATABASE_URL = config("DATABASE_URL", default=None)
+
+if DATABASE_URL:
+    # Railway / Production
+    DATABASES = {
+        "default": dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=600,
+            ssl_require=True,
+        )
+    }
+else:
+    # Local Development
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 # ─── Custom User Model ───────────────────────────────────────────────────────
 AUTH_USER_MODEL = "users.User"
 

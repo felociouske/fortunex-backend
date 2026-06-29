@@ -1,0 +1,1 @@
+web: gunicorn fortunex_backend.wsgi
