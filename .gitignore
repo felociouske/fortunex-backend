@@ -1,0 +1,92 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.pyc
+
+# ── Virtual environments ───────────────────────────────────────────────────────
+venv/
+env/
+.env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ── Django ────────────────────────────────────────────────────────────────────
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+
+# ── Environment variables ──────────────────────────────────────────────────────
+.env
+.env.local
+.env.production
+.env.staging
+.env.*.local
+
+# ── Static files (collected) ───────────────────────────────────────────────────
+staticfiles/
+static_root/
+/static/
+
+# ── Celery ────────────────────────────────────────────────────────────────────
+celerybeat-schedule
+celerybeat.pid
+*.pid
+
+# ── Distribution / packaging ───────────────────────────────────────────────────
+dist/
+build/
+*.egg-info/
+*.egg
+.eggs/
+MANIFEST
+wheels/
+pip-wheel-metadata/
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.hypothesis/
+
+# ── MyPy / type checking ───────────────────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+
+# ── IDE / editors ─────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+*.env.docker
+
+# ── Migrations (keep these — comment out if you want to exclude them) ──────────
+# */migrations/
+
+# ── Uploads / user media ──────────────────────────────────────────────────────
+media/
+uploads/
+
+# ── Secrets / keys ────────────────────────────────────────────────────────────
+*.pem
+*.key
+secrets.json

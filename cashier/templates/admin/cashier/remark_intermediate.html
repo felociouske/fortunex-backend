@@ -1,0 +1,20 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<h1>Confirm {{ action_description }} for {{ items|length }} item(s)</h1>
+<ul>
+  {% for item in items %}
+    <li>{{ item.user.email }} — {{ item.amount }} {{ item.currency }}</li>
+  {% endfor %}
+</ul>
+
+<form method="post">
+  {% csrf_token %}
+  {% for item in items %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ item.pk }}">
+  {% endfor %}
+  <input type="hidden" name="action" value="{{ request.POST.action }}">
+  {{ form.as_p }}
+  <input type="submit" name="apply" value="Confirm {{ action_description }}" class="default" />
+</form>
+{% endblock %}
