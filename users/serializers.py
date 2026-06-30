@@ -87,8 +87,10 @@ class RegisterSerializer(serializers.Serializer):
             referred_by   = referrer,
         )
 
-        # Create the user's 3-wallet system
-        Wallet.objects.create(user=user)
+        # Wallet is created automatically by a post_save signal on User
+        # (see users/signals.py) -- no need to create it explicitly here.
+        # This also means EVERY user gets a wallet, not just ones created
+        # through this specific registration path.
 
         return user
 

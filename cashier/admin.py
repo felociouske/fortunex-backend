@@ -43,10 +43,18 @@ class DepositAdmin(admin.ModelAdmin):
     def approve_deposits(self, request, queryset):
         def do_approve(request, queryset, remark):
             from notifications.services import notify_deposit_decision
-            approved = 0
+            approved, skipped_no_wallet = 0, 0
             with transaction.atomic():
                 for deposit in queryset.select_for_update().filter(status=Deposit.STATUS_PENDING):
-                    wallet = deposit.user.wallet
+                    wallet = getattr(deposit.user, "wallet", None)
+                    if wallet is None:
+                        # Should be unreachable now that every User gets a
+                        # Wallet via a post_save signal (users/signals.py),
+                        # but kept as a safety net for any account that
+                        # existed before that signal was added.
+                        skipped_no_wallet += 1
+                        continue
+
                     wallet.deposit_balance = wallet.deposit_balance + deposit.amount
                     wallet.save(update_fields=["deposit_balance", "updated_at"])
 
@@ -55,7 +63,11 @@ class DepositAdmin(admin.ModelAdmin):
                     deposit.save(update_fields=["status", "reviewed_at"])
                     notify_deposit_decision(deposit, approved=True, remark=remark)
                     approved += 1
-            self.message_user(request, f"Approved {approved} deposit(s) and credited deposit_balance.")
+
+            msg = f"Approved {approved} deposit(s) and credited deposit_balance."
+            if skipped_no_wallet:
+                msg += f" Skipped {skipped_no_wallet} deposit(s) — user has no wallet."
+            self.message_user(request, msg)
 
         return _remark_action(
             self, request, queryset, do_action=do_approve,
@@ -93,10 +105,14 @@ class WithdrawalAdmin(admin.ModelAdmin):
     def approve_withdrawals(self, request, queryset):
         def do_approve(request, queryset, remark):
             from notifications.services import notify_withdrawal_decision
-            approved, skipped = 0, 0
+            approved, skipped, skipped_no_wallet = 0, 0, 0
             with transaction.atomic():
                 for withdrawal in queryset.select_for_update().filter(status=Withdrawal.STATUS_PENDING):
-                    wallet = withdrawal.user.wallet
+                    wallet = getattr(withdrawal.user, "wallet", None)
+                    if wallet is None:
+                        skipped_no_wallet += 1
+                        continue
+
                     current_balance = getattr(wallet, withdrawal.source_wallet)
 
                     if current_balance < withdrawal.amount:
@@ -115,6 +131,8 @@ class WithdrawalAdmin(admin.ModelAdmin):
             msg = f"Approved {approved} withdrawal(s)."
             if skipped:
                 msg += f" Skipped {skipped} due to insufficient balance at approval time."
+            if skipped_no_wallet:
+                msg += f" Skipped {skipped_no_wallet} — user has no wallet."
             self.message_user(request, msg)
 
         return _remark_action(
