@@ -164,6 +164,30 @@ STORAGES = {
 MEDIA_URL   = "/media/"
 MEDIA_ROOT  = BASE_DIR / "media"
 
+
+# ─── M-Pesa Daraja (STK Push) ────────────────────────────────────────────────
+MPESA_ENV = config("MPESA_ENV", default="sandbox")  # "sandbox" or "production"
+MPESA_BASE_URL = (
+    "https://sandbox.safaricom.co.ke" if MPESA_ENV == "sandbox"
+    else "https://api.safaricom.co.ke"
+)
+MPESA_CONSUMER_KEY    = config("MPESA_CONSUMER_KEY", default="")
+MPESA_CONSUMER_SECRET = config("MPESA_CONSUMER_SECRET", default="")
+MPESA_SHORTCODE = config("MPESA_SHORTCODE", default="174379")  # Safaricom's shared sandbox test paybill
+MPESA_PASSKEY   = config("MPESA_PASSKEY", default="")          # from your Daraja app's sandbox page
+
+# Safaricom's servers call this URL directly -- it MUST be public HTTPS.
+# In dev, run `ngrok http 8000` and put the forwarded URL here.
+MPESA_CALLBACK_URL = config(
+    "MPESA_CALLBACK_URL",
+    default="https://CHANGE-ME.ngrok-free.app/api/v1/cashier/mpesa/callback/",
+)
+
+# Wallets always stay in USD. This rate only exists at the boundary where
+# we build (or interpret) a KES amount for Daraja. Kept in .env, not
+# hardcoded, so you can update it without touching code.
+USD_TO_KES_RATE = config("USD_TO_KES_RATE", default="129.33", cast=float)
+
 LANGUAGE_CODE = "en-us"
 TIME_ZONE     = "Africa/Nairobi"
 USE_I18N      = True

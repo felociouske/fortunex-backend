@@ -1,34 +1,23 @@
 """
-Users app — API views.
-
-POST /auth/register/        → create account
-POST /auth/login/           → get JWT tokens
-POST /auth/logout/          → blacklist refresh token
-POST /auth/token/refresh/   → get new access token
-GET  /auth/profile/         → get current user profile
-PATCH /auth/profile/        → update profile
-POST /auth/kyc/             → submit KYC document
+Views for the users/auth app.
 """
-from rest_framework import status
+from django.contrib.auth import login
+from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework_simplejwt.exceptions import TokenError
 
-from .models import User
+from .models import User, KYCSubmission
 from .serializers import (
-    RegisterSerializer, LoginSerializer,
-    UserSerializer, KYCSerializer, WalletSerializer,
+    UserSerializer, RegisterSerializer, LoginSerializer, WalletSerializer,
+    ChangePasswordSerializer, KYCIdentitySerializer, KYCAddressSerializer,
+    KYCSubmissionReadSerializer,
 )
 
 
 class RegisterView(APIView):
-    """
-    POST /auth/register/
-    Creates a new user account + wallet.
-    Returns JWT tokens so the user is logged in immediately.
-    """
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -37,64 +26,48 @@ class RegisterView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         user = serializer.save()
-
-        from notifications.services import notify_kyc_pending
-        notify_kyc_pending(user)
-
-        # Auto-login: generate tokens right after registration
         refresh = RefreshToken.for_user(user)
         return Response({
-            "user":    UserSerializer(user).data,
-            "access":  str(refresh.access_token),
+            "user": UserSerializer(user).data,
+            "access": str(refresh.access_token),
             "refresh": str(refresh),
         }, status=status.HTTP_201_CREATED)
 
 
 class LoginView(APIView):
-    """
-    POST /auth/login/
-    Accepts email + password, returns access + refresh tokens.
-    """
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = LoginSerializer(data=request.data, context={"request": request})
+        serializer = LoginSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        data = serializer.validated_data
+        user = serializer.validated_data["user"]
+        refresh = RefreshToken.for_user(user)
         return Response({
-            "user":    UserSerializer(data["user"]).data,
-            "access":  data["access"],
-            "refresh": data["refresh"],
-        }, status=status.HTTP_200_OK)
+            "user": UserSerializer(user).data,
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+        })
 
 
 class LogoutView(APIView):
-    """
-    POST /auth/logout/
-    Blacklists the refresh token so it can no longer be used.
-    Requires a logged-in user (valid access token).
-    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        refresh_token = request.data.get("refresh")
-        if not refresh_token:
-            return Response({"detail": "Refresh token is required."}, status=status.HTTP_400_BAD_REQUEST)
         try:
+            refresh_token = request.data["refresh"]
             token = RefreshToken(refresh_token)
-            token.blacklist()   # adds to the simplejwt blacklist table
-        except TokenError:
-            return Response({"detail": "Token is invalid or already expired."}, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response({"detail": "Logged out successfully."}, status=status.HTTP_205_RESET_CONTENT)
+            token.blacklist()
+        except Exception:
+            pass
+        return Response({"detail": "Logged out."}, status=status.HTTP_200_OK)
 
 
 class ProfileView(APIView):
     """
     GET  /auth/profile/  → return full user profile including wallet
-    PATCH /auth/profile/ → update allowed fields (name, phone, country)
+    PATCH /auth/profile/ → update allowed fields (name, phone, country, location, kra_pin)
     """
     permission_classes = [IsAuthenticated]
 
@@ -103,7 +76,6 @@ class ProfileView(APIView):
         return Response(serializer.data)
 
     def patch(self, request):
-        # partial=True allows updating only the supplied fields
         serializer = UserSerializer(request.user, data=request.data, partial=True)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -111,34 +83,93 @@ class ProfileView(APIView):
         return Response(serializer.data)
 
 
-class KYCView(APIView):
+class ChangePasswordView(APIView):
     """
-    POST /auth/kyc/
-    Upload a government ID or passport for KYC verification.
-    Sets kyc_status to SUBMITTED — admin reviews via Django admin panel.
-    Requires authenticated user who has not yet submitted KYC.
+    POST /auth/change-password/
+    Requires old_password + new_password. On success, blacklists every
+    outstanding refresh token for this user -- changing your password
+    ends every other session, not just this one.
     """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        user = request.user
+        serializer = ChangePasswordSerializer(data=request.data, context={"request": request})
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save()
 
-        # Prevent re-submission if already verified
-        if user.kyc_status == "VERIFIED":
-            return Response(
-                {"detail": "Your KYC is already verified."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+        for token in OutstandingToken.objects.filter(user=request.user):
+            BlacklistedToken.objects.get_or_create(token=token)
 
-        serializer = KYCSerializer(data=request.data)
+        return Response(
+            {"detail": "Password changed successfully. Please log in again."},
+            status=status.HTTP_200_OK,
+        )
+
+
+class KYCView(APIView):
+    """
+    GET  /auth/kyc/  -> status + data for all 4 categories (Ownership/
+                         Income come back as a fixed "not available yet"
+                         placeholder -- there's no submission for them).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        submissions = {s.category: s for s in request.user.kyc_submissions.all()}
+
+        def category_payload(category):
+            sub = submissions.get(category)
+            if sub:
+                return KYCSubmissionReadSerializer(sub).data
+            return {"category": category, "status": "PENDING"}
+
+        return Response({
+            "overall_status": request.user.kyc_status,
+            "identity": category_payload(KYCSubmission.CATEGORY_IDENTITY),
+            "address": category_payload(KYCSubmission.CATEGORY_ADDRESS),
+            "ownership": {"category": KYCSubmission.CATEGORY_OWNERSHIP, "status": "SUSPENDED"},
+            "income": {"category": KYCSubmission.CATEGORY_INCOME, "status": "SUSPENDED"},
+        })
+
+
+class KYCIdentityView(APIView):
+    """POST /auth/kyc/identity/ -- submit Proof of Identity."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if request.user.kyc_status == User.KYC_VERIFIED:
+            return Response({"detail": "Your KYC is already verified."}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = KYCIdentitySerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        updated_user = serializer.save(user=user)
-        return Response({
-            "detail": "KYC document submitted successfully. We'll review it within 24 hours.",
-            "kyc_status": updated_user.kyc_status,
-        }, status=status.HTTP_200_OK)
+        submission = serializer.save(user=request.user)
+        return Response(
+            KYCSubmissionReadSerializer(submission).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class KYCAddressView(APIView):
+    """POST /auth/kyc/address/ -- submit Proof of Address."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if request.user.kyc_status == User.KYC_VERIFIED:
+            return Response({"detail": "Your KYC is already verified."}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = KYCAddressSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        submission = serializer.save(user=request.user)
+        return Response(
+            KYCSubmissionReadSerializer(submission).data,
+            status=status.HTTP_200_OK,
+        )
 
 
 class WalletView(APIView):
@@ -149,10 +180,8 @@ class WalletView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        # wallet is auto-created on registration (OneToOne)
         try:
             wallet = request.user.wallet
         except Exception:
             return Response({"detail": "Wallet not found."}, status=status.HTTP_404_NOT_FOUND)
-        serializer = WalletSerializer(wallet)
-        return Response(serializer.data)
+        return Response(WalletSerializer(wallet).data)

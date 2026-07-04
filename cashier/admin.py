@@ -35,8 +35,8 @@ def _remark_action(self, request, queryset, *, do_action, template_name, descrip
 @admin.register(Deposit)
 class DepositAdmin(admin.ModelAdmin):
     search_fields = ["user__email", "status"]
-    list_display = ["user", "amount", "currency", "status", "created_at", "reviewed_at"]
-    list_filter = ["status", "currency"]
+    list_display = ["user", "amount", "currency", "method", "status", "phone_number", "mpesa_receipt_number", "created_at", "reviewed_at"]
+    list_filter = ["status", "method", "currency"]
     actions = ["approve_deposits", "reject_deposits"]
 
     @admin.action(description="Approve selected deposits (credits deposit_balance)")
@@ -96,9 +96,10 @@ class DepositAdmin(admin.ModelAdmin):
 
 @admin.register(Withdrawal)
 class WithdrawalAdmin(admin.ModelAdmin):
-    search_fields = ["user__email", "status"]
-    list_display = ["user", "amount", "currency", "source_wallet", "status", "created_at", "reviewed_at"]
+    search_fields = ["user__email", "status", "payout_details"]
+    list_display = ["user", "amount", "currency", "source_wallet", "payout_details", "status", "created_at", "reviewed_at"]
     list_filter = ["status", "currency", "source_wallet"]
+    date_hierarchy = "created_at"
     actions = ["approve_withdrawals", "reject_withdrawals"]
 
     @admin.action(description="Approve selected withdrawals (debits source wallet)")

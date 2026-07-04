@@ -81,3 +81,20 @@ def notify_broadcast(category, title, message, users=None, action_url="", action
         for u in target_users
     ]
     return Notification.objects.bulk_create(notifications)
+
+
+def notify_mpesa_deposit_failed(deposit):
+    """M-Pesa-specific failure wording (cancelled/timed out/insufficient
+    funds) -- distinct from notify_deposit_decision's admin-rejection
+    wording, since no human reviewed this outcome."""
+    message = f"Your M-Pesa deposit of {deposit.amount} {deposit.currency} could not be completed."
+    if deposit.result_desc:
+        message += f" Reason: {deposit.result_desc}"
+    return Notification.objects.create(
+        user=deposit.user,
+        category=Notification.CATEGORY_DEPOSIT,
+        title="Deposit failed",
+        message=message,
+        action_url="/cashier?tab=deposit",
+        action_label="Try again",
+    )
