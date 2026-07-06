@@ -6,9 +6,17 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.generic.base import RedirectView
 from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
+    # Hitting the backend's own root goes straight to the admin panel --
+    # unauthenticated visitors get bounced further to /admin/login/ by
+    # Django's own admin app automatically, so we don't need to hardcode
+    # that login path ourselves, just point at /admin/ and let Django
+    # handle the rest of that redirect chain.
+    path("", RedirectView.as_view(url="/admin/", permanent=False)),
+
     # Django admin panel (for KYC review, user management, etc.)
     path("admin/", admin.site.urls),
 
@@ -32,9 +40,6 @@ urlpatterns = [
 
     # Cashier endpoints
     path("api/v1/cashier/", include("cashier.urls")),
-
-    # Affiliate endpoints
-    path("api/v1/affiliate/", include("affiliate.urls")),
 
     # Affiliate endpoints
     path("api/v1/affiliate/", include("affiliate.urls")),

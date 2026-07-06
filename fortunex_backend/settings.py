@@ -15,6 +15,7 @@ ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="*").split(",")
 
 # ─── Apps ──────────────────────────────────────────────────────────────────
 INSTALLED_APPS = [
+    "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -152,12 +153,16 @@ if DEBUG:
 # ─── Static / Media ──────────────────────────────────────────────────────────
 STATIC_URL  = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        # Was "whitenoise.storage.CompressedManifestStaticFilesStorage" --
+        # swapped for our lenient subclass, see whitenoise_storage.py
+        # for exactly why this is needed.
+        "BACKEND": "fortunex_backend.whitenoise_storage.LenientManifestStaticFilesStorage",
     },
 }
 
@@ -194,3 +199,107 @@ USE_I18N      = True
 USE_TZ        = True
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# ─── Jazzmin (admin panel theming) ───────────────────────────────────────────
+JAZZMIN_SETTINGS = {
+    "site_title": "FortuneX Admin",
+    "site_header": "FortuneX",
+    "site_brand": "FortuneX",
+    "site_logo": None,   # no logo file yet -- once you have one, put it under a static folder
+                          # (e.g. static/images/logo.png) and set this to "images/logo.png"
+    "login_logo": None,
+    "site_icon": None,
+    "welcome_sign": "Welcome to FortuneX Admin",
+    "copyright": "FortuneX",
+
+    # Models searchable from the top admin search bar, these three cover
+    # the most common "find this user / find this transaction" lookups.
+    "search_model": ["users.User", "cashier.Deposit", "cashier.Withdrawal"],
+    "user_avatar": None,
+
+    "topmenu_links": [
+        {"name": "View Site", "url": "/", "new_window": True},
+        {"model": "users.User"},
+    ],
+
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "hide_apps": [],
+    "hide_models": [],
+
+    # Controls the order apps appear in the sidebar, top to bottom.
+    # Auth (Django's built in Users/Groups) pushed to the bottom since
+    # your own users.User model is what you actually manage day to day.
+    "order_with_respect_to": [
+        "users", "cashier", "trading", "bots", "affiliate", "notifications", "market", "auth",
+    ],
+
+    # Per model sidebar icons (FontAwesome 5 free, bundled with Jazzmin).
+    # Only apps/models I've actually seen the real names of in your code
+    # are listed here, see the chat note about "market" specifically.
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.Group": "fas fa-users",
+
+        "users.User": "fas fa-user",
+        "users.Wallet": "fas fa-wallet",
+        "users.KYCSubmission": "fas fa-id-card",
+
+        "cashier.Deposit": "fas fa-arrow-down",
+        "cashier.Withdrawal": "fas fa-arrow-up",
+
+        "trading.MarketInstrument": "fas fa-chart-bar",
+        "trading.Tick": "fas fa-wave-square",
+        "trading.TradePosition": "fas fa-exchange-alt",
+        "trading.BotRun": "fas fa-robot",
+
+        "bots.AutomationProduct": "fas fa-microchip",
+
+        "affiliate.ReferralLink": "fas fa-link",
+        "affiliate.ReferralCommission": "fas fa-hand-holding-usd",
+
+        "notifications.Notification": "fas fa-bell",
+    },
+    "default_icon_parents": "fas fa-chevron-circle-right",
+    "default_icon_children": "fas fa-circle",
+
+    "related_modal_active": False,
+    "custom_css": None,
+    "custom_js": None,
+    "show_ui_builder": False,  # fixed theme via code only, per your answer, no live customizer
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    "brand_colour": "navbar-dark",
+    "accent": "accent-info",  # closest built in preset to your #00c2b2 teal, see chat note for an exact hex match option
+    "navbar": "navbar-dark",
+    "no_navbar_border": True,
+    "navbar_fixed": True,
+    "layout_boxed": False,
+    "footer_fixed": False,
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-primary",
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": True,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": True,
+    "theme": "darkly",         # dark theme, closest built in match to your app's own look
+    "dark_mode_theme": "darkly",
+    "default_theme_mode": "auto",
+    "button_classes": {
+        "primary": "btn-outline-info",
+        "secondary": "btn-outline-secondary",
+        "info": "btn-outline-info",
+        "warning": "btn-outline-warning",
+        "danger": "btn-outline-danger",
+        "success": "btn-outline-success",
+    },
+    "actions_sticky_top": True,
+}
