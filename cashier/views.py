@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 
 from . import mpesa_service
-from .models import Deposit, Withdrawal, PaymentAgent
+from .models import Deposit, Withdrawal, PaymentAgent, PaymentSettings
 from .serializers import DepositSerializer, WithdrawalSerializer, StkPushSerializer, ManualMpesaDepositSerializer, PaymentAgentSerializer
 
 
@@ -160,17 +160,19 @@ class DepositStatusView(APIView):
 class ExchangeRateView(APIView):
     """
     GET /api/v1/cashier/exchange-rate/
-    Single source of truth for both the USD->KES rate AND the paybill
-    details needed to render manual-deposit payment instructions --
-    so the frontend never hardcodes the shortcode either.
+    Single source of truth for the USD->KES rate AND the paybill
+    details shown in manual-deposit payment instructions. Paybill
+    details now come from the PaymentSettings row (admin editable), not
+    settings.py, so they can change without a redeploy.
     """
     permission_classes = [AllowAny]
 
     def get(self, request):
+        payment_settings = PaymentSettings.get_solo()
         return Response({
             "usd_to_kes": settings.USD_TO_KES_RATE,
-            "paybill_shortcode": settings.MPESA_SHORTCODE,
-            "paybill_account_name": "FortuneX",
+            "paybill_shortcode": payment_settings.paybill_number,
+            "paybill_account_name": payment_settings.account_name,
         })
 
 

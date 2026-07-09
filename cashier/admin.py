@@ -3,7 +3,7 @@ from django.db import transaction
 from django.shortcuts import render
 from django.utils import timezone
 
-from .models import Deposit, Withdrawal, PaymentAgent
+from .models import Deposit, Withdrawal, PaymentAgent, PaymentSettings
 from .forms import RemarkForm
 
 
@@ -167,3 +167,15 @@ class PaymentAgentAdmin(admin.ModelAdmin):
     list_editable = ["is_active", "display_order"]  # toggle/reorder straight from the list, no need to open each record
     search_fields = ["name", "phone_number"]
     list_filter = ["is_active"]
+
+
+@admin.register(PaymentSettings)
+class PaymentSettingsAdmin(admin.ModelAdmin):
+    list_display = ["paybill_number", "account_name"]
+
+    def has_add_permission(self, request):
+        # Singleton -- block adding a second row once one already exists.
+        return not PaymentSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False

@@ -111,3 +111,31 @@ class PaymentAgent(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.phone_number})"
+
+class PaymentSettings(models.Model):
+    """
+    Singleton config for the manual M-Pesa Paybill instructions shown
+    on the deposit form (see ExchangeRateView). Admin edits the one row
+    here instead of these values being fixed in settings.py/.env, so
+    they can change without a redeploy.
+    """
+    paybill_number = models.CharField(max_length=20, default="174379")
+    account_name = models.CharField(
+        max_length=50, default="FortuneX",
+        help_text="Shown as the Account Number step in payment instructions, a shared brand name, not a per-user reference",
+    )
+
+    def save(self, *args, **kwargs):
+        self.pk = 1  # enforce a single row, always overwrite the same one
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        pass  # block deletion, this config should always exist once created
+
+    @classmethod
+    def get_solo(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return f"Paybill {self.paybill_number} / {self.account_name}"
