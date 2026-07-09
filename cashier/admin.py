@@ -3,7 +3,7 @@ from django.db import transaction
 from django.shortcuts import render
 from django.utils import timezone
 
-from .models import Deposit, Withdrawal
+from .models import Deposit, Withdrawal, PaymentAgent
 from .forms import RemarkForm
 
 
@@ -159,3 +159,11 @@ class WithdrawalAdmin(admin.ModelAdmin):
             template_name="admin/cashier/remark_intermediate.html",
             description="reject",
         )
+
+
+@admin.register(PaymentAgent)
+class PaymentAgentAdmin(admin.ModelAdmin):
+    list_display = ["name", "phone_number", "is_active", "display_order"]
+    list_editable = ["is_active", "display_order"]  # toggle/reorder straight from the list, no need to open each record
+    search_fields = ["name", "phone_number"]
+    list_filter = ["is_active"]

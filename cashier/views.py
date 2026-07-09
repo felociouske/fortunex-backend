@@ -7,8 +7,8 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import status
 
 from . import mpesa_service
-from .models import Deposit, Withdrawal
-from .serializers import DepositSerializer, WithdrawalSerializer, StkPushSerializer, ManualMpesaDepositSerializer
+from .models import Deposit, Withdrawal, PaymentAgent
+from .serializers import DepositSerializer, WithdrawalSerializer, StkPushSerializer, ManualMpesaDepositSerializer, PaymentAgentSerializer
 
 
 class DepositView(APIView):
@@ -254,3 +254,13 @@ class TransactionsView(APIView):
         return Response({"transactions": transactions})
 
 
+class PaymentAgentListView(APIView):
+    """GET /api/v1/cashier/payment-agents/ -- active P2P deposit agents,
+    name and phone number only. Admin manages the list (add, hide via
+    is_active, reorder) entirely through Django admin, no code change
+    needed on this end for routine agent management."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        agents = PaymentAgent.objects.filter(is_active=True)
+        return Response(PaymentAgentSerializer(agents, many=True).data)
