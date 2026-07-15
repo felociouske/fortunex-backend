@@ -69,13 +69,24 @@ class User(AbstractUser):
         return f"{self.email} [{self.kyc_status}]"
 
     def save(self, *args, **kwargs):
-        if not self.referral_code:
-            self.referral_code = self._generate_referral_code()
-        super().save(*args, **kwargs)
+            if not self.referral_code:
+                self.referral_code = self._generate_referral_code()
+            super().save(*args, **kwargs)
+            # Existing users never hit the line above, since their
+            # referral_code is never blank on an update save -- old-format
+            # codes (e.g. IOVDHZJP) are left exactly as stored.
 
     def _generate_referral_code(self):
+        """
+        New-format referral code: 'ft' + 8 random digits (e.g.
+        ft78267238). Deliberately NOT based on user id/signup order --
+        a sequential code (ft00000001, ft00000002, ...) is guessable
+        and lets anyone enumerate every referral code on the platform
+        just by counting up. Random digits, collision-checked against
+        the DB like the old alnum codes were, close that off.
+        """
         while True:
-            code = get_random_string(length=8, allowed_chars='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789')
+            code = "ft" + get_random_string(length=8, allowed_chars="0123456789")
             if not User.objects.filter(referral_code=code).exists():
                 return code
 
