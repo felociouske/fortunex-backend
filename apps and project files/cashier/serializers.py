@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Deposit, Withdrawal
+from .models import Deposit, Withdrawal, PaymentAgent
 from .mpesa_service import normalize_phone
 import re
 
@@ -89,3 +89,12 @@ class StkPushSerializer(serializers.Serializer):
                 "Enter a valid Safaricom number, e.g. 0712345678 or 254712345678."
             )
         return normalized
+
+
+class PaymentAgentSerializer(serializers.ModelSerializer):
+    """Only name and phone number are ever exposed here -- every other
+    trust detail shown on the P2P tab lives in the frontend instead, so
+    this never needs to change if that content does."""
+    class Meta:
+        model = PaymentAgent
+        fields = ["id", "name", "phone_number"]

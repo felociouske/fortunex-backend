@@ -193,6 +193,12 @@ MPESA_CALLBACK_URL = config(
 # hardcoded, so you can update it without touching code.
 USD_TO_KES_RATE = config("USD_TO_KES_RATE", default="129.33", cast=float)
 
+# ─── BluePay (separate M-Pesa STK Push rail, alongside Daraja above) ───────
+# BluePay has a single base URL (no sandbox/live split like IntaSend) --
+# see bluepay_service.py.
+BLUEPAY_CHANNEL_ID = config("BLUEPAY_CHANNEL_ID", default="")
+BLUEPAY_API_SECRET = config("BLUEPAY_API_SECRET", default="")
+
 LANGUAGE_CODE = "en-us"
 TIME_ZONE     = "Africa/Nairobi"
 USE_I18N      = True

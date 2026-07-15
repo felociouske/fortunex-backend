@@ -88,3 +88,54 @@ class Withdrawal(models.Model):
 
     def __str__(self):
         return f"Withdrawal {self.amount} {self.currency} for {self.user.email} [{self.status}]"
+
+
+class PaymentAgent(models.Model):
+    """
+    A trusted individual/business users can send M-Pesa payments to
+    directly (P2P deposits), then submit the resulting code on the
+    M-Pesa (manual) tab for the usual admin review.
+
+    Deliberately minimal: only what actually needs to live in a
+    database and be updatable without a code change. Everything
+    trust-related (star rating, description, badges) is intentionally
+    NOT here, it lives in the frontend instead, per product decision.
+    """
+    name = models.CharField(max_length=100)
+    phone_number = models.CharField(max_length=20, help_text="Shown to users exactly as entered, e.g. 0712345678")
+    is_active = models.BooleanField(default=True, help_text="Uncheck to hide from the app without deleting the record")
+    display_order = models.PositiveIntegerField(default=0, help_text="Lower numbers appear first in the list")
+
+    class Meta:
+        ordering = ["display_order", "name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.phone_number})"
+
+class PaymentSettings(models.Model):
+    """
+    Singleton config for the manual M-Pesa Paybill instructions shown
+    on the deposit form (see ExchangeRateView). Admin edits the one row
+    here instead of these values being fixed in settings.py/.env, so
+    they can change without a redeploy.
+    """
+    paybill_number = models.CharField(max_length=20, default="174379")
+    account_name = models.CharField(
+        max_length=50, default="FortuneX",
+        help_text="Shown as the Account Number step in payment instructions, a shared brand name, not a per-user reference",
+    )
+
+    def save(self, *args, **kwargs):
+        self.pk = 1  # enforce a single row, always overwrite the same one
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        pass  # block deletion, this config should always exist once created
+
+    @classmethod
+    def get_solo(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def __str__(self):
+        return f"Paybill {self.paybill_number} / {self.account_name}"

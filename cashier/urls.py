@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from .views import (
     DepositView, WithdrawalView,
     StkPushView, MpesaCallbackView, DepositStatusView, ExchangeRateView, TransactionsView,
@@ -16,4 +16,5 @@ urlpatterns = [
     path("mpesa/callback/", MpesaCallbackView.as_view(), name="cashier-mpesa-callback"),
     path("mpesa/status/<str:checkout_request_id>/", DepositStatusView.as_view(), name="cashier-mpesa-status"),
     path("exchange-rate/", ExchangeRateView.as_view(), name="cashier-exchange-rate"),
+    path("bluepay/", include("cashier.bluepay_urls")),
 ]

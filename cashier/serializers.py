@@ -1,3 +1,6 @@
+from decimal import Decimal
+
+from django.db.models import Sum
 from rest_framework import serializers
 from .models import Deposit, Withdrawal, PaymentAgent
 from .mpesa_service import normalize_phone
@@ -70,9 +73,26 @@ class WithdrawalSerializer(serializers.ModelSerializer):
             source = data.get("source_wallet", Withdrawal.SOURCE_REAL)
             available = getattr(wallet, source, 0) if wallet else 0
 
+            # The balance stored on the wallet is only ever debited when an
+            # admin *approves* a withdrawal (see cashier/admin.py) -- a
+            # PENDING request doesn't touch it yet. Without this, the same
+            # balance could back several simultaneous withdrawal requests:
+            # each one would individually validate fine against the
+            # untouched wallet balance, only for admin approval to silently
+            # reject all but the first. Subtracting this user's other
+            # already-pending requests for the same wallet closes that gap
+            # and gives an honest error up front instead.
+            pending_amount = Withdrawal.objects.filter(
+                user=request.user,
+                status=Withdrawal.STATUS_PENDING,
+                source_wallet=source,
+            ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+
+            available = available - pending_amount
+
             if available < data["amount"]:
                 raise serializers.ValidationError(
-                    f"Insufficient {source.replace('_', ' ')} for this withdrawal request."
+                    f"Your requested amount is larger than your available {source.replace('_', ' ')}."
                 )
             return data
 

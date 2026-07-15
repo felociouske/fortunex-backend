@@ -19,10 +19,12 @@ class Deposit(models.Model):
     METHOD_MANUAL = "MANUAL"
     METHOD_MPESA  = "MPESA"
     METHOD_MANUAL_MPESA = "MANUAL_MPESA"  # user paid via Paybill directly, submitted the code themselves
+    METHOD_BLUEPAY = "BLUEPAY"            # M-Pesa STK push routed through BluePay, separate rail from Daraja above
     METHOD_CHOICES = [
         (METHOD_MANUAL, "Manual"),
         (METHOD_MPESA,  "M-Pesa (automatic)"),
         (METHOD_MANUAL_MPESA, "M-Pesa (manual, user-submitted code)"),
+        (METHOD_BLUEPAY, "M-Pesa via BluePay"),
     ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="deposits")
