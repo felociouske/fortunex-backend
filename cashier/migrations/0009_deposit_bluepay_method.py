@@ -1,6 +1,6 @@
 # Adds the BluePay method choice (additive only -- does not touch any
 # existing Daraja/M-Pesa method values or data). Chained after your
-# existing 0007_paymentagent.py migration.
+# existing 0008_paymentsettings.py migration.
 
 from django.db import migrations, models
 
@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('cashier', '0007_paymentagent'),
+        ('cashier', '0008_paymentsettings'),
     ]
 
     operations = [
