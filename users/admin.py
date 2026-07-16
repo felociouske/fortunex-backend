@@ -4,7 +4,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils import timezone
-from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from .models import User, Wallet, KYCSubmission
 
 
@@ -43,7 +43,7 @@ class KYCSubmissionInline(admin.TabularInline):
             f'</a>'
             for label, url in images
         )
-        return format_html(thumbs)
+        return mark_safe(thumbs)
     documents_preview.short_description = "Documents"
 
     def has_add_permission(self, request, obj=None):
@@ -154,7 +154,7 @@ class KYCSubmissionAdmin(admin.ModelAdmin):
             f'</a>'
             for label, url in images
         )
-        return format_html(thumbs)
+        return mark_safe(thumbs)
     documents_preview.short_description = "Submitted documents"
 
     @admin.action(description="Approve selected KYC submissions")
