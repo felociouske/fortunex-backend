@@ -29,6 +29,7 @@ from channels.layers import get_channel_layer
 from django.utils import timezone
 
 from .models import MarketInstrument, Tick, TradePosition
+from .tick_pruning import prune_ticks_forever
 
 TICK_DECIMALS = Decimal("0.000001")
 
@@ -177,4 +178,4 @@ async def run_all_engines():
     if not instrument_ids:
         return
     engines = [InstrumentEngine(iid) for iid in instrument_ids]
-    await asyncio.gather(*(e.run() for e in engines))
+    await asyncio.gather(*(e.run() for e in engines), prune_ticks_forever())
