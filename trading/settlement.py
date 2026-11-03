@@ -139,9 +139,12 @@ def settle_position(position: TradePosition, exit_price: Decimal) -> TradePositi
     ])
 
     if status == TradePosition.STATUS_WON:
-        wallet = position.user.wallet
+        # Lock the wallet row before the read-modify-write. Without the
+        # lock, a stake being debited at the same instant (a new contract
+        # opening, a bot's next trade) could read the same starting
+        # balance, and whichever save landed last would silently erase
+        # the other's change. Same pattern every other money path uses.
+        wallet = position.user.wallet.__class__.objects.select_for_update().get(user=position.user)
         payout = position.stake + profit_loss
         wallet.real_balance = wallet.real_balance + payout
         wallet.save(update_fields=["real_balance", "updated_at"])
-
-    return position
